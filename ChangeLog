@@ -1,3 +1,8 @@
+01/15/2020
+- add value of OIDC_SET_COOKIE_APPEND env var to Set-Cookie headers
+  useful for handling changing/upcoming SameSite behaviors across different browsers, e.g.:
+    SetEnvIf User-Agent ".*IOS.*" OIDC_SET_COOKIE_APPEND=SameSite=None
+
 08/04/2018
 - don't return content with 503 since it will turn the HTTP status code into a 200; see #331
 
