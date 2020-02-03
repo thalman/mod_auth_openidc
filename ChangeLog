@@ -1,3 +1,7 @@
+02/03/2020
+- fix: also add SameSite=None to by-value session cookies
+- bump to 2.4.2rc0
+
 01/29/2020
 - always add a SameSite value to the Set-Cookie header to satisfy upcoming Chrome/Firefox changes
   this can be overridden by using, e.g.:
