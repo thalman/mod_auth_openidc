@@ -166,6 +166,8 @@
 #define OIDC_DEFAULT_AUTH_REQUEST_METHOD OIDC_AUTH_REQUEST_METHOD_GET
 /* define whether the issuer will be added to the redirect uri by default to mitigate the IDP mixup attack */
 #define OIDC_DEFAULT_PROVIDER_ISSUER_SPECIFIC_REDIRECT_URI 0
+/* default setting for calculating the fingerprint of the state from request headers during authentication */
+#define OIDC_DEFAULT_STATE_INPUT_HEADERS OIDC_STATE_INPUT_HEADERS_USER_AGENT | OIDC_STATE_INPUT_HEADERS_X_FORWARDED_FOR
 
 #define OIDCProviderMetadataURL              "OIDCProviderMetadataURL"
 #define OIDCProviderIssuer                   "OIDCProviderIssuer"
@@ -261,6 +263,7 @@
 #define OIDCProviderAuthRequestMethod        "OIDCProviderAuthRequestMethod"
 #define OIDCBlackListedClaims                "OIDCBlackListedClaims"
 #define OIDCOAuthServerMetadataURL           "OIDCOAuthServerMetadataURL"
+#define OIDCStateInputHeaders                  "OIDCStateInputHeaders"
 
 extern module AP_MODULE_DECLARE_DATA auth_openidc_module;
 
@@ -1031,6 +1034,17 @@ int oidc_cfg_delete_oldest_state_cookies(oidc_cfg *cfg) {
 }
 
 /*
+ * define which header we use for calculating the fingerprint of the state during authentication
+ */
+static const char * oidc_set_state_input_headers_as(cmd_parms *cmd, void *m,
+		const char *arg) {
+	oidc_cfg *cfg = (oidc_cfg *) ap_get_module_config(
+			cmd->server->module_config, &auth_openidc_module);
+	const char *rv = oidc_parse_set_state_input_headers_as(cmd->pool, arg, &cfg->state_input_headers);
+	return OIDC_CONFIG_DIR_RV(cmd, rv);
+}
+
+/*
  * create a new server config record with defaults
  */
 void *oidc_create_server_config(apr_pool_t *pool, server_rec *svr) {
@@ -1175,6 +1189,8 @@ void *oidc_create_server_config(apr_pool_t *pool, server_rec *svr) {
 
 	c->provider.issuer_specific_redirect_uri =
 			OIDC_DEFAULT_PROVIDER_ISSUER_SPECIFIC_REDIRECT_URI;
+
+	c->state_input_headers = OIDC_DEFAULT_STATE_INPUT_HEADERS;
 
 	return c;
 }
@@ -1616,6 +1632,10 @@ void *oidc_merge_server_config(apr_pool_t *pool, void *BASE, void *ADD) {
 			!= OIDC_DEFAULT_PROVIDER_ISSUER_SPECIFIC_REDIRECT_URI ?
 					add->provider.issuer_specific_redirect_uri :
 					base->provider.issuer_specific_redirect_uri;
+
+	c->state_input_headers =
+			add->state_input_headers != OIDC_DEFAULT_STATE_INPUT_HEADERS ?
+					add->state_input_headers : base->state_input_headers;
 
 	return c;
 }
@@ -2866,5 +2886,10 @@ const command_rec oidc_config_cmds[] = {
 				(void*)APR_OFFSETOF(oidc_cfg, oauth.metadata_url),
 				RSRC_CONF,
 				"Authorization Server metadata URL."),
+		AP_INIT_TAKE123(OIDCStateInputHeaders,
+				oidc_set_state_input_headers_as,
+				NULL,
+				RSRC_CONF,
+				"Specify header name which is used as the input for calculating the fingerprint of the state during authentication; must be one of \"none\", \"user-agent\", \"x-forwarded-for\" or \"both\" (default)."),
 		{ NULL }
 };

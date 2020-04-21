@@ -1254,3 +1254,36 @@ const char *oidc_parse_max_number_of_state_cookies(apr_pool_t *pool,
 		rv = oidc_parse_boolean(pool, arg2, bool_value);
 	return rv;
 }
+
+#define OIDC_STATE_INPUT_HEADERS_AS_BOTH            "both"
+#define OIDC_STATE_INPUT_HEADERS_AS_USER_AGENT      "user-agent"
+#define OIDC_STATE_INPUT_HEADERS_AS_X_FORWARDED_FOR "x-forwarded-for"
+#define OIDC_STATE_INPUT_HEADERS_AS_NONE            "none"
+
+/*
+ * parse a "set state input headers as" value from the provided string
+ */
+const char *oidc_parse_set_state_input_headers_as(apr_pool_t *pool, const char *arg,
+		apr_byte_t *state_input_headers) {
+	static char *options[] = {
+			OIDC_STATE_INPUT_HEADERS_AS_BOTH,
+			OIDC_STATE_INPUT_HEADERS_AS_USER_AGENT,
+			OIDC_STATE_INPUT_HEADERS_AS_X_FORWARDED_FOR,
+			OIDC_STATE_INPUT_HEADERS_AS_NONE,
+			NULL };
+	const char *rv = oidc_valid_string_option(pool, arg, options);
+	if (rv != NULL)
+		return rv;
+
+	if (apr_strnatcmp(arg, OIDC_STATE_INPUT_HEADERS_AS_BOTH) == 0) {
+		*state_input_headers = OIDC_STATE_INPUT_HEADERS_USER_AGENT | OIDC_STATE_INPUT_HEADERS_X_FORWARDED_FOR;
+	} else if (apr_strnatcmp(arg, OIDC_STATE_INPUT_HEADERS_AS_USER_AGENT) == 0) {
+		*state_input_headers = OIDC_STATE_INPUT_HEADERS_USER_AGENT;
+	} else if (apr_strnatcmp(arg, OIDC_STATE_INPUT_HEADERS_AS_X_FORWARDED_FOR) == 0) {
+		*state_input_headers = OIDC_STATE_INPUT_HEADERS_X_FORWARDED_FOR;
+	} else if (apr_strnatcmp(arg, OIDC_STATE_INPUT_HEADERS_AS_NONE) == 0) {
+		*state_input_headers = 0;
+	}
+
+	return NULL;
+}
