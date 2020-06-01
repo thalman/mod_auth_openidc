@@ -2585,22 +2585,11 @@ static apr_byte_t oidc_validate_post_logout_url(request_rec *r, const char *url,
                                                apr_uri_unparse(r->pool, &uri, 0), c_host);
                oidc_error(r, "%s: %s", *err_str, *err_desc);
                return FALSE;
-       } else if (strstr(url, "/") != url) {
+       } else if ((uri.hostname == NULL) && (strstr(url, "/") != url)) {
                *err_str = apr_pstrdup(r->pool, "Malformed URL");
                *err_desc =
                                apr_psprintf(r->pool,
                                                "No hostname was parsed and it does not seem to be relative, i.e starting with '/': %s",
-                                               url);
-               oidc_error(r, "%s: %s", *err_str, *err_desc);
-               return FALSE;
-       }
-
-       /* validate the URL to prevent HTTP header splitting */
-       if (((strstr(url, "\n") != NULL) || strstr(url, "\r") != NULL)) {
-               *err_str = apr_pstrdup(r->pool, "Invalid Request");
-               *err_desc =
-                               apr_psprintf(r->pool,
-                                               "logout value \"%s\" contains illegal \"\n\" or \"\r\" character(s)",
                                                url);
                oidc_error(r, "%s: %s", *err_str, *err_desc);
                return FALSE;
@@ -2620,6 +2609,17 @@ static apr_byte_t oidc_validate_post_logout_url(request_rec *r, const char *url,
                                                 url);
                 oidc_error(r, "%s: %s", *err_str, *err_desc);
                 return FALSE;
+       }
+
+       /* validate the URL to prevent HTTP header splitting */
+       if (((strstr(url, "\n") != NULL) || strstr(url, "\r") != NULL)) {
+               *err_str = apr_pstrdup(r->pool, "Invalid Request");
+               *err_desc =
+                               apr_psprintf(r->pool,
+                                               "logout value \"%s\" contains illegal \"\n\" or \"\r\" character(s)",
+                                               url);
+               oidc_error(r, "%s: %s", *err_str, *err_desc);
+               return FALSE;
        }
 
        return TRUE;
