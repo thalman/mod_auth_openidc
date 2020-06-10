@@ -264,6 +264,7 @@
 #define OIDCBlackListedClaims                "OIDCBlackListedClaims"
 #define OIDCOAuthServerMetadataURL           "OIDCOAuthServerMetadataURL"
 #define OIDCStateInputHeaders                  "OIDCStateInputHeaders"
+#define OIDCRedirectURLsAllowed                "OIDCRedirectURLsAllowed"
 
 extern module AP_MODULE_DECLARE_DATA auth_openidc_module;
 
@@ -1044,6 +1045,16 @@ static const char * oidc_set_state_input_headers_as(cmd_parms *cmd, void *m,
 	return OIDC_CONFIG_DIR_RV(cmd, rv);
 }
 
+static const char * oidc_set_redirect_urls_allowed(cmd_parms *cmd, void *m,
+               const char *arg) {
+    oidc_cfg *cfg = (oidc_cfg *) ap_get_module_config(
+        cmd->server->module_config, &auth_openidc_module);
+    if (cfg->redirect_urls_allowed == NULL)
+        cfg->redirect_urls_allowed = apr_hash_make(cmd->pool);
+    apr_hash_set(cfg->redirect_urls_allowed, arg, APR_HASH_KEY_STRING, arg);
+    return NULL;
+}
+
 /*
  * create a new server config record with defaults
  */
@@ -1191,6 +1202,8 @@ void *oidc_create_server_config(apr_pool_t *pool, server_rec *svr) {
 			OIDC_DEFAULT_PROVIDER_ISSUER_SPECIFIC_REDIRECT_URI;
 
 	c->state_input_headers = OIDC_DEFAULT_STATE_INPUT_HEADERS;
+
+	c->redirect_urls_allowed = NULL;
 
 	return c;
 }
@@ -1636,6 +1649,10 @@ void *oidc_merge_server_config(apr_pool_t *pool, void *BASE, void *ADD) {
 	c->state_input_headers =
 			add->state_input_headers != OIDC_DEFAULT_STATE_INPUT_HEADERS ?
 					add->state_input_headers : base->state_input_headers;
+
+	c->redirect_urls_allowed =
+			add->redirect_urls_allowed != NULL ?
+					add->redirect_urls_allowed : base->redirect_urls_allowed;
 
 	return c;
 }
@@ -2310,7 +2327,7 @@ void oidc_register_hooks(apr_pool_t *pool) {
 	ap_register_auth_provider(pool, AUTHZ_PROVIDER_GROUP,
 			OIDC_REQUIRE_CLAIM_NAME, "0", &oidc_authz_claim_provider,
 			AP_AUTH_INTERNAL_PER_CONF);
-#ifdef USE_LIBJQ			
+#ifdef USE_LIBJQ
 	ap_register_auth_provider(pool, AUTHZ_PROVIDER_GROUP,
 			OIDC_REQUIRE_CLAIMS_EXPR_NAME, "0",
 			&oidc_authz_claims_expr_provider, AP_AUTH_INTERNAL_PER_CONF);
@@ -2891,5 +2908,10 @@ const command_rec oidc_config_cmds[] = {
 				NULL,
 				RSRC_CONF,
 				"Specify header name which is used as the input for calculating the fingerprint of the state during authentication; must be one of \"none\", \"user-agent\", \"x-forwarded-for\" or \"both\" (default)."),
+		AP_INIT_ITERATE(OIDCRedirectURLsAllowed,
+				oidc_set_redirect_urls_allowed,
+				(void *) APR_OFFSETOF(oidc_cfg, redirect_urls_allowed),
+				RSRC_CONF|ACCESS_CONF|OR_AUTHCFG,
+				"Specify one or more regular expressions that define URLs allowed for post logout and other redirects."),
 		{ NULL }
 };
