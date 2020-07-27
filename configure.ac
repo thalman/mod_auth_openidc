@@ -91,7 +91,7 @@ HAVE_LIBJQ=0
 
 AC_ARG_WITH(jq,
         [  --with-jq=PATH          location of your libjq installation])
-    
+
 if test -n "$with_jq"
 then
     JQ_CFLAGS="-I$with_jq/include"

@@ -2688,7 +2688,8 @@ static int oidc_handle_logout_request(request_rec *r, oidc_cfg *c,
 }
 
 static apr_byte_t oidc_validate_redirect_url(request_rec *r, oidc_cfg *c,
-		const char *url, char **err_str, char **err_desc) {
+		const char *url, apr_byte_t restrict_to_host, char **err_str,
+		char **err_desc) {
 	apr_uri_t uri;
 	const char *c_host = NULL;
 	apr_hash_index_t *hi = NULL;
@@ -2717,7 +2718,7 @@ static apr_byte_t oidc_validate_redirect_url(request_rec *r, oidc_cfg *c,
 			oidc_error(r, "%s: %s", *err_str, *err_desc);
 			return FALSE;
 		}
-	} else if (uri.hostname != NULL) {
+	} else if ((uri.hostname != NULL) && (restrict_to_host == TRUE)) {
 		c_host = oidc_get_current_url_host(r);
 		if ((strstr(c_host, uri.hostname) == NULL)
 				|| (strstr(uri.hostname, c_host) == NULL)) {
@@ -2792,7 +2793,7 @@ static int oidc_handle_logout(request_rec *r, oidc_cfg *c,
 	} else {
 
 		/* do input validation on the logout parameter value */
-		if (oidc_validate_redirect_url(r, c, url, &error_str,
+		if (oidc_validate_redirect_url(r, c, url, TRUE, &error_str,
 				&error_description) == FALSE) {
 			return oidc_util_html_send_error(r, c->error_template, error_str,
 					error_description,
@@ -2948,6 +2949,18 @@ static int oidc_handle_session_management_iframe_rp(request_rec *r, oidc_cfg *c,
 	if (s_poll_interval == NULL)
 		s_poll_interval = "3000";
 
+	int poll_interval = s_poll_interval ? strtol(s_poll_interval, NULL, 10) : 0;
+	if ((poll_interval <= 0) || (poll_interval > 3600 * 24))
+		poll_interval = 3000;
+
+	char *login_uri = NULL, *error_str = NULL, *error_description = NULL;
+	oidc_util_get_request_parameter(r, "login_uri", &login_uri);
+	if ((login_uri != NULL)
+			&& (oidc_validate_redirect_url(r, c, login_uri, FALSE, &error_str,
+					&error_description) == FALSE)) {
+		return HTTP_BAD_REQUEST;
+	}
+
 	const char *redirect_uri = oidc_get_redirect_uri(r, c);
 	java_script = apr_psprintf(r->pool, java_script, origin, client_id,
 			session_state, op_iframe_id, s_poll_interval, redirect_uri,
@@ -3061,7 +3074,7 @@ static int oidc_handle_refresh_token_request(request_rec *r, oidc_cfg *c,
 	}
 
 	/* do input validation on the return to parameter value */
-	if (oidc_validate_redirect_url(r, c, return_to, &error_str,
+	if (oidc_validate_redirect_url(r, c, return_to, TRUE, &error_str,
 			&error_description) == FALSE) {
 		oidc_error(r, "return_to URL validation failed: %s: %s", error_str,
 				error_description);

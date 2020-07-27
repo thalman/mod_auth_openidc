@@ -86,7 +86,7 @@
 - bump to 2.3.5rc0
 
 04/27/2018
-- avoid crash when a relative logout URL parameter is passed in; thanks Vivien Delenne 
+- avoid crash when a relative logout URL parameter is passed in; thanks Vivien Delenne
 - release 2.3.4
 
 03/22/2018
@@ -258,7 +258,7 @@
 - bump to 2.2.1rc6
 
 05/18/2017
-- fix parse function of OIDCRequestObject configuration option; thanks @suttod 
+- fix parse function of OIDCRequestObject configuration option; thanks @suttod
 
 05/17/2017
 - avoid crash when the X-Forwarded-Proto header is not correctly set by a reverse proxy in front of mod_auth_openidc
@@ -325,7 +325,7 @@
 
 02/20/2017
 - security fix: scrub headers for "AuthType oauth20"
-- release 2.1.6 
+- release 2.1.6
 
 02/15/2017
 - improve logging of session max duration and session inactivity timeout
@@ -534,7 +534,7 @@
 - bump to 1.9.0rc3
 
 7/19/2016
-- add support for chunked session cookies; closes #153; thanks @glatzert 
+- add support for chunked session cookies; closes #153; thanks @glatzert
 - bump to 1.9.0rc2
 
 7/9/2016
@@ -911,7 +911,7 @@
 
 1/1/2015
 - update copyright to 2015
-- use json_int_t (seconds) for "exp" and "iat" fields, instead of apr_time_t (microseconds) 
+- use json_int_t (seconds) for "exp" and "iat" fields, instead of apr_time_t (microseconds)
 - correct expiry debug printout
 - bump to 1.7.2rc1
 
@@ -1191,7 +1191,7 @@
 - support using a Bearer token on client registration calls
 
 4/22/2014
-- match request and response type 
+- match request and response type
 - check at_hash value on "token id_token" implicit flow
 - use shared memory caching by default
 - release 1.2
