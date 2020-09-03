@@ -155,7 +155,7 @@ static apr_byte_t oidc_session_load_cache(request_rec *r, oidc_session_t *z) {
 
 					/* delete the session cookie */
 					oidc_util_set_cookie(r, oidc_cfg_dir_cookie(r), "", 0,
-							NULL);
+					                OIDC_COOKIE_EXT_SAME_SITE_NONE);
 					/* delete the cache entry */
 					rc = oidc_cache_set_session(r, z->uuid, NULL, 0);
 					/* clear the session */
@@ -208,7 +208,8 @@ static apr_byte_t oidc_session_save_cache(request_rec *r, oidc_session_t *z,
 
 	} else {
 		/* clear the cookie */
-		oidc_util_set_cookie(r, oidc_cfg_dir_cookie(r), "", 0, NULL);
+		oidc_util_set_cookie(r, oidc_cfg_dir_cookie(r), "", 0,
+				OIDC_COOKIE_EXT_SAME_SITE_NONE);
 
 		/* remove the session from the cache */
 		rc = oidc_cache_set_session(r, z->uuid, NULL, 0);
@@ -245,11 +246,12 @@ static apr_byte_t oidc_session_save_cookie(request_rec *r, oidc_session_t *z,
 	oidc_util_set_chunked_cookie(r, oidc_cfg_dir_cookie(r), cookieValue,
 			c->persistent_session_cookie ? z->expiry : -1,
 					c->session_cookie_chunk_size,
-					c->cookie_same_site ?
-							(first_time ?
-									OIDC_COOKIE_EXT_SAME_SITE_LAX :
-									OIDC_COOKIE_EXT_SAME_SITE_STRICT) :
-									OIDC_COOKIE_EXT_SAME_SITE_NONE);
+					(z->state == NULL) ? OIDC_COOKIE_EXT_SAME_SITE_NONE :
+							c->cookie_same_site ?
+									(first_time ?
+											OIDC_COOKIE_EXT_SAME_SITE_LAX :
+											OIDC_COOKIE_EXT_SAME_SITE_STRICT) :
+											OIDC_COOKIE_EXT_SAME_SITE_NONE);
 
 	return TRUE;
 }

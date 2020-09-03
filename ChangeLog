@@ -1,3 +1,7 @@
+09/03/2020
+- add SameSite attribute on cookie clearance / logout; thanks @v0gler
+- bump to 2.4.4.1
+
 02/03/2020
 - fix: also add SameSite=None to by-value session cookies
 - bump to 2.4.2rc0

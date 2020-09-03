@@ -717,7 +717,8 @@ static int oidc_delete_oldest_state_cookies(request_rec *r,
 		oidc_warn(r,
 				"deleting oldest state cookie: %s (time until expiry " APR_TIME_T_FMT " seconds)",
 				oldest->name, apr_time_sec(oldest->timestamp - apr_time_now()));
-		oidc_util_set_cookie(r, oldest->name, "", 0, NULL);
+		oidc_util_set_cookie(r, oldest->name, "", 0,
+				OIDC_COOKIE_EXT_SAME_SITE_NONE);
 		if (prev_oldest)
 			prev_oldest->next = oldest->next;
 		else
@@ -762,7 +763,7 @@ static int oidc_clean_expired_state_cookies(request_rec *r, oidc_cfg *c,
 								oidc_error(r, "state (%s) has expired",
 										cookieName);
 								oidc_util_set_cookie(r, cookieName, "", 0,
-										NULL);
+										OIDC_COOKIE_EXT_SAME_SITE_NONE);
 							} else {
 								if (first == NULL) {
 									first = apr_pcalloc(r->pool,
@@ -779,6 +780,12 @@ static int oidc_clean_expired_state_cookies(request_rec *r, oidc_cfg *c,
 								number_of_valid_state_cookies++;
 							}
 							oidc_proto_state_destroy(proto_state);
+						} else {
+							oidc_warn(r,
+									"state cookie could not be retrieved/decoded, deleting: %s",
+									cookieName);
+							oidc_util_set_cookie(r, cookieName, "", 0,
+									OIDC_COOKIE_EXT_SAME_SITE_NONE);
 						}
 					}
 				}
@@ -816,7 +823,7 @@ static apr_byte_t oidc_restore_proto_state(request_rec *r, oidc_cfg *c,
 	}
 
 	/* clear state cookie because we don't need it anymore */
-	oidc_util_set_cookie(r, cookieName, "", 0, NULL);
+	oidc_util_set_cookie(r, cookieName, "", 0, OIDC_COOKIE_EXT_SAME_SITE_NONE);
 
 	*proto_state = oidc_proto_state_from_cookie(r, c, cookieValue);
 	if (*proto_state == NULL)
@@ -916,9 +923,7 @@ static int oidc_authorization_request_set_cookie(request_rec *r, oidc_cfg *c,
 
 	/* set it as a cookie */
 	oidc_util_set_cookie(r, cookieName, cookieValue, -1,
-			c->cookie_same_site ?
-					OIDC_COOKIE_EXT_SAME_SITE_LAX :
-					OIDC_COOKIE_EXT_SAME_SITE_NONE);
+			OIDC_COOKIE_SAMESITE_LAX(c));
 
 	return HTTP_OK;
 }
@@ -2183,9 +2188,7 @@ static int oidc_discovery(request_rec *r, oidc_cfg *cfg) {
 
 		/* set CSRF cookie */
 		oidc_util_set_cookie(r, OIDC_CSRF_NAME, csrf, -1,
-				cfg->cookie_same_site ?
-						OIDC_COOKIE_EXT_SAME_SITE_STRICT :
-						OIDC_COOKIE_EXT_SAME_SITE_NONE);
+				OIDC_COOKIE_SAMESITE_STRICT(cfg));
 
 		/* see if we need to preserve POST parameters through Javascript/HTML5 storage */
 		if (oidc_post_preserve_javascript(r, url, NULL, NULL) == TRUE)
@@ -2278,9 +2281,7 @@ static int oidc_discovery(request_rec *r, oidc_cfg *cfg) {
 	s = apr_psprintf(r->pool, "%s</form>\n", s);
 
 	oidc_util_set_cookie(r, OIDC_CSRF_NAME, csrf, -1,
-			cfg->cookie_same_site ?
-					OIDC_COOKIE_EXT_SAME_SITE_STRICT :
-					OIDC_COOKIE_EXT_SAME_SITE_NONE);
+			OIDC_COOKIE_SAMESITE_STRICT(cfg));
 
 	char *javascript = NULL, *javascript_method = NULL;
 	char *html_head =
@@ -2501,7 +2502,8 @@ static int oidc_handle_discovery_response(request_rec *r, oidc_cfg *c) {
 	if (csrf_cookie) {
 
 		/* clean CSRF cookie */
-		oidc_util_set_cookie(r, OIDC_CSRF_NAME, "", 0, NULL);
+		oidc_util_set_cookie(r, OIDC_CSRF_NAME, "", 0,
+				OIDC_COOKIE_EXT_SAME_SITE_NONE);
 
 		/* compare CSRF cookie value with query parameter value */
 		if ((csrf_query == NULL)
@@ -2639,12 +2641,12 @@ static int oidc_handle_logout_request(request_rec *r, oidc_cfg *c,
 
 	oidc_debug(r, "enter (url=%s)", url);
 
-	/* if there's no remote_user then there's no (stored) session to kill */
-	if (session->remote_user != NULL) {
-
-		/* remove session state (cq. cache entry and cookie) */
-		oidc_session_kill(r, session);
-	}
+	/*
+	 * remove session state (cq. cache entry and cookie)
+	 * always clear the session cookie because the cookie may be not sent (but still in the browser)
+	 * due to SameSite policies
+	 */
+	oidc_session_kill(r, session);
 
 	/* see if this is the OP calling us */
 	if (oidc_is_front_channel_logout(url)) {
@@ -2661,6 +2663,8 @@ static int oidc_handle_logout_request(request_rec *r, oidc_cfg *c,
 		const char *accept = oidc_util_hdr_in_accept_get(r);
 		if ((apr_strnatcmp(url, OIDC_IMG_STYLE_LOGOUT_PARAM_VALUE) == 0)
 				|| ((accept) && strstr(accept, OIDC_CONTENT_TYPE_IMAGE_PNG))) {
+			// terminate with DONE instead of OK
+			// to avoid Apache returning auth/authz error 401 for the redirect URI
 			return oidc_util_http_send(r,
 					(const char *) &oidc_transparent_pixel,
 					sizeof(oidc_transparent_pixel), OIDC_CONTENT_TYPE_IMAGE_PNG,
