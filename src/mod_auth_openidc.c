@@ -191,6 +191,8 @@ void oidc_strip_cookies(request_rec *r) {
 		do {
 			while (cookie != NULL && *cookie == OIDC_CHAR_SPACE)
 				cookie++;
+			if (cookie == NULL)
+				break;
 
 			for (i = 0; i < strip->nelts; i++) {
 				name = ((const char**) strip->elts)[i];
